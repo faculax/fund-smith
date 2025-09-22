@@ -30,15 +30,27 @@ services:
     ports:
       - "8080:8080"
 
+  gateway:
+    build:
+      context: ./gateway
+    ports:
+      - "8081:8081"
+    depends_on:
+      - backend
+    environment:
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_URI=http://backend:8080
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_URI=http://backend:8080
+      - SPRING_CLOUD_GATEWAY_ROUTES_2_URI=http://backend:8080
+
   frontend:
     build:
       context: ./frontend
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_BASE_URL=http://localhost:8080
+      - REACT_APP_API_BASE_URL=http://localhost:8081/api
     depends_on:
-      - backend
+      - gateway
 
 volumes:
   postgres_data:

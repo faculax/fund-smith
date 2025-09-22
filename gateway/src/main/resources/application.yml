@@ -9,10 +9,22 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowed-origins: "*"
-            allowed-methods: "*"
+            allowed-origins: 
+              - "http://localhost:3000"
+            # Cannot use "*" with allow-credentials: true
+            allowed-origin-patterns:
+              - "*"  # Use this instead of wildcard in allowed-origins
+            allowed-methods: 
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
             allowed-headers: "*"
-            allow-credentials: false
+            exposed-headers:
+              - "Authorization"
+              - "Content-Type"
+            allow-credentials: true
             max-age: 3600
       routes:
         # Route market data requests to the market data service

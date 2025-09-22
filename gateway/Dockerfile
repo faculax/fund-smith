@@ -20,13 +20,13 @@ WORKDIR /app
 # Copy the built JAR from the previous stage
 COPY --from=builder /app/target/*.jar app.jar
 
-# Expose the port 80, since we will override to this port
-EXPOSE 80
+# Expose the port 8081, which matches the application.yml config
+EXPOSE 8081
 
-# Set environment variable to override Spring Boot server port to 80
-ENV SERVER_PORT=80 
-ENV MARKET_DATA_URI=https://fxtrading-market-data-dqevewfhefdkdng6.uksouth-01.azurewebsites.net
-ENV BACKEND_URI=https://fxtradingbackend-hkhkfqdzgygghkaj.uksouth-01.azurewebsites.net
+# Set environment variables for service connectivity
+# SERVER_PORT is not set to use the default from application.yml
+ENV MARKET_DATA_URI=http://backend:8080
+ENV BACKEND_URI=http://backend:8080
 
 # Run the app
 ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"]
