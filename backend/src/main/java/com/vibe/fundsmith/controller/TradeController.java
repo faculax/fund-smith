@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/trades")
+@RequestMapping("/api/trades")
 public class TradeController {
     private final TradeService tradeService;
 
