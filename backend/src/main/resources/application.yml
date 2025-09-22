@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: trading-platform
+
+server:
+  port: ${SERVER_PORT:8080}
+
+# API Ninjas configuration for interest rates
+api:
+  ninjas:
+    key: demo
+    base-url: https://api.api-ninjas.com/v1
+
+logging:
+  level:
+    com.vibe.trading: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE 
+    com.zaxxer.hikari: DEBUG

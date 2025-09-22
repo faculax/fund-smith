@@ -1,0 +1,74 @@
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  application:
+    name: vibe-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origins: 
+              - "http://localhost:3000"
+              - "https://localhost:3000"
+              - "http://127.0.0.1:3000"
+              - "https://127.0.0.1:3000"
+              - "http://localhost:3001"
+              - "https://localhost:3001"
+              - "http://127.0.0.1:3001"
+              - "https://127.0.0.1:3001"
+              - "https://fxtrading-frontend-hdhrbfakgshkapep.uksouth-01.azurewebsites.net"
+            allowed-methods: 
+              - "GET"
+              - "POST"
+              - "PUT"
+              - "DELETE"
+              - "OPTIONS"
+            allowed-headers: 
+              - "Content-Type"
+              - "Authorization"
+              - "X-Requested-With"
+              - "Accept"
+              - "Origin"
+              - "Access-Control-Request-Method"
+              - "Access-Control-Request-Headers"
+              - "*"
+            allow-credentials: false
+            max-age: 3600
+      routes:
+        - id: market-data-service
+          uri: ${MARKET_DATA_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/rates/**
+          filters:
+            - StripPrefix=0
+
+        - id: market-data-version
+          uri: ${MARKET_DATA_URI:http://localhost:8082}
+          predicates:
+            - Path=/api/version/**
+          filters:
+            - StripPrefix=0
+
+        - id: backend-service
+          uri: ${BACKEND_URI:http://localhost:8080}
+          predicates:
+            - Path=/api/**
+          filters:
+            - StripPrefix=0
+
+        - id: backend-health
+          uri: ${BACKEND_URI:http://localhost:8080}
+          predicates:
+            - Path=/actuator/**
+          filters:
+            - StripPrefix=0
+
+        # Build info route (handled by gateway itself)
+        - id: version
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/version/**
+          filters:
+            - StripPrefix=0
