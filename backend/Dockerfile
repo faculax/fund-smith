@@ -26,5 +26,10 @@ EXPOSE 80
 # Set environment variable to override Spring Boot server port to 80
 ENV SERVER_PORT=80
 
+ENV SPRING_DATASOURCE_URL='jdbc:postgresql://dpg-d38q7j7fte5s73canqjg-a:5432/fund_smith_postgres?sslmode=require'
+ENV SPRING_DATASOURCE_USERNAME=fund_smith_postgres_user
+ENV SPRING_DATASOURCE_PASSWORD=w3A3gwvbcHGc8mHJQO5Fu40D50k5crp5
+ENV SERVER_PORT=80
+
 # Run the app
 ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"]
