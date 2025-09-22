@@ -13,8 +13,6 @@ spring:
               - "http://localhost:3000"
               - "https://fund-smith.onrender.com"
             # Cannot use "*" with allow-credentials: true
-            allowed-origin-patterns:
-              - "*"  # Use this instead of wildcard in allowed-origins
             allowed-methods: 
               - GET
               - POST
@@ -25,7 +23,7 @@ spring:
             exposed-headers:
               - "Authorization"
               - "Content-Type"
-            allow-credentials: true
+            allow-credentials: false
             max-age: 3600
       routes:
         # Route market data requests to the market data service
