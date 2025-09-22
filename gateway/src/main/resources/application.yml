@@ -11,6 +11,7 @@ spring:
           '[/**]':
             allowed-origins: 
               - "http://localhost:3000"
+              - "https://fund-smith.onrender.com"
             # Cannot use "*" with allow-credentials: true
             allowed-origin-patterns:
               - "*"  # Use this instead of wildcard in allowed-origins
