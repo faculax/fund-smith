@@ -8,9 +8,6 @@ import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 
-// Commenting out this configuration to avoid duplicate CORS headers
-// The CORS configuration is now handled in application.yml with globalcors
-/*
 @Configuration
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CorsConfig {
@@ -57,4 +54,3 @@ public class CorsConfig {
         return new CorsWebFilter(source);
     }
 }
-*/

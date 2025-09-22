@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:8081}
+  port: 8081
 
 spring:
   application:
@@ -9,66 +9,51 @@ spring:
       globalcors:
         cors-configurations:
           '[/**]':
-            allowed-origins: 
-              - "http://localhost:3000"
-              - "https://localhost:3000"
-              - "http://127.0.0.1:3000"
-              - "https://127.0.0.1:3000"
-              - "http://localhost:3001"
-              - "https://localhost:3001"
-              - "http://127.0.0.1:3001"
-              - "https://127.0.0.1:3001"
-              - "https://fxtrading-frontend-hdhrbfakgshkapep.uksouth-01.azurewebsites.net"
-            allowed-methods: 
-              - "GET"
-              - "POST"
-              - "PUT"
-              - "DELETE"
-              - "OPTIONS"
-            allowed-headers: 
-              - "Content-Type"
-              - "Authorization"
-              - "X-Requested-With"
-              - "Accept"
-              - "Origin"
-              - "Access-Control-Request-Method"
-              - "Access-Control-Request-Headers"
-              - "*"
+            allowed-origins: "*"
+            allowed-methods: "*"
+            allowed-headers: "*"
             allow-credentials: false
             max-age: 3600
       routes:
+        # Route market data requests to the market data service
         - id: market-data-service
-          uri: ${MARKET_DATA_URI:http://localhost:8082}
+          uri: http://localhost:8082
           predicates:
             - Path=/api/rates/**
           filters:
-            - StripPrefix=0
+            - StripPrefix=0 # Keep the /api prefix when forwarding
 
-        - id: market-data-version
-          uri: ${MARKET_DATA_URI:http://localhost:8082}
-          predicates:
-            - Path=/api/version/**
-          filters:
-            - StripPrefix=0
-
+        # Route all other /api/* requests to the backend service
         - id: backend-service
-          uri: ${BACKEND_URI:http://localhost:8080}
+          uri: http://localhost:8080
           predicates:
             - Path=/api/**
           filters:
-            - StripPrefix=0
+            - StripPrefix=0 # Keep the /api prefix when forwarding
 
+        # Health check route
         - id: backend-health
-          uri: ${BACKEND_URI:http://localhost:8080}
+          uri: http://localhost:8080
           predicates:
             - Path=/actuator/**
           filters:
             - StripPrefix=0
 
-        # Build info route (handled by gateway itself)
-        - id: version
-          uri: http://localhost:8081
-          predicates:
-            - Path=/api/version/**
-          filters:
-            - StripPrefix=0
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# Logging configuration
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.web.cors: DEBUG
+    org.springframework.web.reactive: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
