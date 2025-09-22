@@ -43,4 +43,18 @@ public class TradeController {
     ) {
         return tradeService.findTrades(fromDate, toDate, isin, limit);
     }
+    
+    /**
+     * Clears all trades from the database
+     * @return A response indicating how many trades were deleted
+     */
+    @DeleteMapping
+    public ResponseEntity<Map<String, Object>> clearAllTrades() {
+        long deletedCount = tradeService.deleteAllTrades();
+        return ResponseEntity.ok(Map.of(
+            "success", true,
+            "message", "All trades have been cleared",
+            "deletedCount", deletedCount
+        ));
+    }
 }

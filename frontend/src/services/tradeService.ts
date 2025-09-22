@@ -67,6 +67,27 @@ class TradeService {
             throw error;
         }
     }
+    
+    /**
+     * Clears all trades from the database
+     * @returns A promise that resolves when all trades are cleared
+     */
+    async clearAllTrades(): Promise<{ success: boolean; message: string; deletedCount: number }> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/trades`, {
+                method: 'DELETE',
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to clear trades');
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error('Error clearing trades:', error);
+            throw error;
+        }
+    }
 }
 
 export const tradeService = new TradeService();

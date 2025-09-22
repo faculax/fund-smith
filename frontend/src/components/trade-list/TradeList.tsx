@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Trade } from '../../types/trade';
 import { tradeService } from '../../services/tradeService';
 import styles from './TradeList.module.css';
@@ -7,7 +7,16 @@ const POLL_INTERVAL_MS = 5000;
 const MAX_BACKOFF_MS = 30000;
 const NEW_TRADE_HIGHLIGHT_MS = 3000;
 
-export const TradeList: React.FC = () => {
+// Define a ref type for the TradeList component
+export interface TradeListRef {
+  refreshTrades: () => Promise<void>;
+}
+
+export interface TradeListProps {
+  // Add any props if needed
+}
+
+export const TradeList = forwardRef<TradeListRef, TradeListProps>((props, ref) => {
     const [trades, setTrades] = useState<Trade[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -58,6 +67,11 @@ export const TradeList: React.FC = () => {
             setLoading(false);
         }
     }, []);
+    
+    // Expose the refreshTrades method via ref
+    useImperativeHandle(ref, () => ({
+        refreshTrades: fetchTrades
+    }));
 
     useEffect(() => {
         // Initial fetch
@@ -166,7 +180,7 @@ export const TradeList: React.FC = () => {
             )}
         </div>
     );
-};
+});
 
 const LoadingSkeleton = () => (
     <div className={styles.loading}>
