@@ -37,5 +37,6 @@ nav:
   default:
     shares-outstanding: 1000000
     currency: USD
+  fee-rate: 0.005 # 0.5% annual
 server:
   port: 8080
