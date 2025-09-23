@@ -26,27 +26,37 @@ import java.util.stream.Collectors;
 @Service
 public class PositionService {
     private static final Logger log = LoggerFactory.getLogger(PositionService.class);
-    
+
     private final PositionRepository positionRepository;
     private final ProcessedTradeRepository processedTradeRepository;
     private final ObjectMapper objectMapper;
-    
+
     @Autowired
-    public PositionService(PositionRepository positionRepository, 
-                         ProcessedTradeRepository processedTradeRepository,
-                         ObjectMapper objectMapper) {
+    public PositionService(PositionRepository positionRepository,
+            ProcessedTradeRepository processedTradeRepository,
+            ObjectMapper objectMapper) {
         this.positionRepository = positionRepository;
         this.processedTradeRepository = processedTradeRepository;
         this.objectMapper = objectMapper;
     }
-    
+
+    /**
+     * Get all positions
+     * This is used by NAV calculation and position queries
+     * 
+     * @return List of all positions sorted by ISIN
+     */
+    public List<Position> getPositions() {
+        return positionRepository.findAllByOrderByIsinAsc();
+    }
+
     /**
      * Update a position for a given trade if it hasn't been processed already.
      * 
-     * @param tradeId Unique identifier of the trade
-     * @param isin ISIN of the instrument
+     * @param tradeId  Unique identifier of the trade
+     * @param isin     ISIN of the instrument
      * @param quantity Quantity of the trade
-     * @param side Side of the trade (BUY/SELL)
+     * @param side     Side of the trade (BUY/SELL)
      * @return true if position was updated, false if trade was already processed
      * @throws RuntimeException if the update fails
      */
@@ -57,45 +67,46 @@ public class PositionService {
             log.info("Trade {} already processed - skipping position update", tradeId);
             return false;
         }
-        
+
         // Calculate delta based on side
         BigDecimal delta = (side == TradeSide.BUY) ? quantity : quantity.negate();
-        
+
         // Get current position (if exists) before updating
         Optional<Position> currentPositionOpt = positionRepository.findById(isin);
         BigDecimal currentQuantity = currentPositionOpt.map(Position::getQuantity)
-                                                     .orElse(BigDecimal.ZERO);
-        
-        // Check if resulting quantity would be negative when SELL is not fully supported
+                .orElse(BigDecimal.ZERO);
+
+        // Check if resulting quantity would be negative when SELL is not fully
+        // supported
         BigDecimal newQuantity = currentQuantity.add(delta);
         if (newQuantity.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalStateException("Position would become negative: " + isin + 
-                ", current: " + currentQuantity + ", delta: " + delta);
+            throw new IllegalStateException("Position would become negative: " + isin +
+                    ", current: " + currentQuantity + ", delta: " + delta);
         }
-        
+
         // Perform atomic update or insert
         int updated = positionRepository.updateQuantity(isin, delta);
         // If no rows were affected, insert new position
         if (updated == 0) {
             positionRepository.insertPosition(isin, delta);
         }
-        
+
         // Register trade as processed for idempotency
         processedTradeRepository.save(new ProcessedTrade(tradeId, isin, delta));
-        
+
         // Fetch the updated position
         Position updatedPosition = positionRepository.findById(isin)
                 .orElseThrow(() -> new RuntimeException("Position not found after update: " + isin));
-                
+
         // Emit position updated event (log for now)
         emitPositionUpdatedEvent(isin, delta, updatedPosition.getQuantity(), updatedPosition.getUpdatedAt());
-        
-        log.info("Updated position for ISIN {}: delta={}, new quantity={}", 
+
+        log.info("Updated position for ISIN {}: delta={}, new quantity={}",
                 isin, delta, updatedPosition.getQuantity());
-                
+
         return true;
     }
-    
+
     /**
      * Get all positions
      * 
@@ -107,12 +118,12 @@ public class PositionService {
                 .map(p -> new PositionDto(p.getIsin(), p.getQuantity(), p.getUpdatedAt()))
                 .collect(Collectors.toList());
     }
-    
+
     /**
      * Emit position updated event
      */
-    private void emitPositionUpdatedEvent(String isin, BigDecimal delta, 
-                                        BigDecimal newQuantity, ZonedDateTime updatedAt) {
+    private void emitPositionUpdatedEvent(String isin, BigDecimal delta,
+            BigDecimal newQuantity, ZonedDateTime updatedAt) {
         PositionUpdatedEvent event = new PositionUpdatedEvent(isin, delta, newQuantity, updatedAt);
         try {
             // For now, just log the event as JSON

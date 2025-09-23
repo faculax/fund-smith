@@ -32,6 +32,10 @@ demo:
   max-quantity: 5000
   quantity-step: 100
   max-price-jitter: 0.02  # 2%
-
+  
+nav:
+  default:
+    shares-outstanding: 1000000
+    currency: USD
 server:
   port: 8080
