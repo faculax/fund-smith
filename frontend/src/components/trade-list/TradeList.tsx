@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react';
 import { Trade } from '../../types/trade';
 import { tradeService } from '../../services/tradeService';
+import { journalService, Journal } from '../../services/journalService';
+import JournalBadge from '../journal-badge/JournalBadge';
+import JournalModal from '../journal-modal/JournalModal';
 import styles from './TradeList.module.css';
 
 const POLL_INTERVAL_MS = 5000;
@@ -22,9 +25,44 @@ export const TradeList = forwardRef<TradeListRef, TradeListProps>((props, ref) =
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
     const [newTradeIds, setNewTradeIds] = useState<Set<string>>(new Set());
+    const [tradeJournals, setTradeJournals] = useState<Record<string, Journal[]>>({});
+    const [selectedTrade, setSelectedTrade] = useState<Trade | null>(null);
+    const [showJournalModal, setShowJournalModal] = useState<boolean>(false);
     const previousTradeIds = useRef<Set<string>>(new Set());
     const pollIntervalRef = useRef<number>(POLL_INTERVAL_MS);
     const pollTimeoutRef = useRef<NodeJS.Timeout>();
+    
+    // Helper function to determine journal status for a trade
+    const getJournalStatus = (tradeId: string) => {
+        const journals = tradeJournals[tradeId] || [];
+        
+        if (journals.length === 0) {
+            return 'none';
+        }
+        
+        const hasSettlementJournal = journals.some(j => j.type === 'SETTLEMENT_DATE');
+        return hasSettlementJournal ? 'settled' : 'trade';
+    };
+    
+    // Handle journal badge click
+    const handleJournalClick = async (trade: Trade) => {
+        setSelectedTrade(trade);
+        
+        // Fetch journals if we don't have them yet
+        if (!tradeJournals[trade.id]) {
+            try {
+                const journals = await journalService.fetchJournals({ tradeId: trade.tradeId });
+                setTradeJournals(prev => ({
+                    ...prev,
+                    [trade.id]: journals
+                }));
+            } catch (error) {
+                console.error('Error fetching journals:', error);
+            }
+        }
+        
+        setShowJournalModal(true);
+    };
 
     const fetchTrades = useCallback(async () => {
         try {
@@ -55,6 +93,22 @@ export const TradeList = forwardRef<TradeListRef, TradeListProps>((props, ref) =
                 setTimeout(() => {
                     setNewTradeIds(new Set());
                 }, NEW_TRADE_HIGHLIGHT_MS);
+                
+                // Fetch journals for new trades
+                for (const id of newIds) {
+                    try {
+                        const trade = fetchedTrades.find(t => t.id === id);
+                        if (trade) {
+                            const journals = await journalService.fetchJournals({ tradeId: trade.tradeId });
+                            setTradeJournals(prev => ({
+                                ...prev,
+                                [id]: journals
+                            }));
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching journals for trade ${id}:`, error);
+                    }
+                }
             }
         } catch (err) {
             setError('Failed to fetch trades. Retrying...');
@@ -125,6 +179,22 @@ export const TradeList = forwardRef<TradeListRef, TradeListProps>((props, ref) =
                     <div className={`${styles.indicator} ${error ? styles.indicatorError : styles.indicatorActive}`} />
                 </div>
             </div>
+            
+            {/* Journal Modal */}
+            {showJournalModal && selectedTrade && (
+                <JournalModal
+                    tradeId={selectedTrade.tradeId}
+                    tradeDetails={{
+                        isin: selectedTrade.isin,
+                        quantity: selectedTrade.quantity,
+                        price: selectedTrade.price,
+                        side: selectedTrade.side || 'BUY',
+                        tradeDate: selectedTrade.tradeDate,
+                        settleDate: selectedTrade.settleDate
+                    }}
+                    onClose={() => setShowJournalModal(false)}
+                />
+            )}
 
             {error && <div className={styles.error}>{error}</div>}
 
@@ -141,6 +211,7 @@ export const TradeList = forwardRef<TradeListRef, TradeListProps>((props, ref) =
                                 <th className={styles.tableHeader}>Price</th>
                                 <th className={styles.tableHeader}>Trade Date</th>
                                 <th className={styles.tableHeader}>Settle Date</th>
+                                <th className={styles.tableHeader}>Journals</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -171,6 +242,12 @@ export const TradeList = forwardRef<TradeListRef, TradeListProps>((props, ref) =
                                     </td>
                                     <td className={styles.tableCell}>
                                         {formatDate(trade.settleDate)}
+                                    </td>
+                                    <td className={styles.tableCell}>
+                                        <JournalBadge 
+                                            status={getJournalStatus(trade.id)}
+                                            onClick={() => handleJournalClick(trade)} 
+                                        />
                                     </td>
                                 </tr>
                             ))}
