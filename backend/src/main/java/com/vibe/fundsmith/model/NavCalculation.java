@@ -7,11 +7,6 @@ import java.util.UUID;
 
 /**
  * Entity representing a NAV snapshot.
- * Maps to the DB table nav_snapshots (renamed for clarity / audit).
- *
- * Design / rationale:
- * - Entity field names are chosen for readability in Java code.
- * - Column names are explicitly mapped to the migration so DB <> entity remain in sync.
  * - The snapshot captures gross value, fee accrual (liability), net value,
  *   shares outstanding at time of calculation and NAV per share.
  */

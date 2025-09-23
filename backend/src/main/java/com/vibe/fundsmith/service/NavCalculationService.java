@@ -101,14 +101,17 @@ public class NavCalculationService {
                     RoundingMode.HALF_UP
             );
 
-            // build snapshot entity capturing sharesOutstanding at calculation time
-            NavCalculation snapshot = new NavCalculation(portfolioId, defaultSharesOutstanding);
-            snapshot.setTotalAssets(grossAssetValue);
-            snapshot.setTotalLiabilities(dailyFeeAccrual);
-            snapshot.setNetAssetValue(netAssetValue);
-            snapshot.setNavPerShare(navPerShare);
+            // Create and save NAV calculation snapshot
+            NavCalculation nav = new NavCalculation(portfolioId, defaultSharesOutstanding);
+            nav.setTotalAssets(grossAssetValue);
+            nav.setTotalLiabilities(dailyFeeAccrual); // fee accrual as liability
+            nav.setNetAssetValue(netAssetValue);
+            nav.setNavPerShare(navPerShare);
 
-            NavCalculation saved = navCalculationRepository.save(snapshot);
+            // Ensure shares outstanding recorded at calculation time (acceptance criteria)
+            nav.setSharesOutstanding(defaultSharesOutstanding);
+
+            NavCalculation saved = navCalculationRepository.save(nav);
 
             log.info("NAV snapshot saved (id={}): gross={}, fee={}, net={}, nav/share={}",
                     saved.getId(), grossAssetValue, dailyFeeAccrual, netAssetValue, navPerShare);
