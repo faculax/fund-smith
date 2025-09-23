@@ -1,4 +1,10 @@
-# Story 2.5 – Automated Demo Trade Generator
+# Story 2.5 – Automated Demo Trad## 🧠 Client Education
+Supports demo narrative: "feed of trades" without external integration. Can be disabled in production.
+
+### Trade Generation Modes
+- **Regular Mode (default)**: Trades are generated with today's date and will settle T+2 business days later.
+- **Backdated Mode**: Trades are generated with a trade date set to T-2 days and will settle today, useful for demonstrating settlement-related features without waiting.
+- **Stopped Mode**: No trades will be generated even if the scheduler is running, useful for temporarily pausing trade generation without stopping the service.Generator
 
 **As a demo facilitator**,  
 I want the system to auto-generate random valid trades every 5 seconds  
@@ -18,9 +24,19 @@ So that the frontend trade list has live activity without manual input
 
 ## 🔄 Additional Functionality
 ### 2.5.1 – API Toggle
-Endpoint: `POST /admin/auto-trades/{action}` where action in (`start`,`stop`)
-### 2.5.2 – Metrics
-Expose count of synthetic trades generated (`GET /admin/metrics`)
+Endpoint: `POST /admin/auto-trades/{action}` where action in (`start`,`stop`,`backdated-mode`,`regular-mode`,`stopped-mode`)
+- `start` - Start the demo trade generator
+- `stop` - Stop the demo trade generator
+- `backdated-mode` - Enable backdated trade generation (trades will settle today)
+- `regular-mode` - Enable regular trade generation (trades will settle T+2)
+- `stopped-mode` - Enable stopped mode (no trades will be generated)
+
+### 2.5.2 – Status and Metrics
+Endpoint: `GET /admin/auto-trades/status`
+Returns status information including:
+- `running`: boolean indicating if the generator is currently active
+- `mode`: the current generation mode (REGULAR, BACKDATED, or STOPPED)
+- `tradeCount`: count of synthetic trades generated
 
 ## 🧠 Client Education
 Supports demo narrative: “feed of trades” without external integration. Can be disabled in production.

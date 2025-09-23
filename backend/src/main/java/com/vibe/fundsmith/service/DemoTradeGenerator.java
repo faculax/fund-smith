@@ -26,11 +26,18 @@ public class DemoTradeGenerator {
     private static final List<String> CURRENCIES = Arrays.asList("USD", "EUR", "GBP");
     private static final List<String> PORTFOLIO_IDS = Arrays.asList("DEFAULT", "GLOBAL_EQUITY", "TECH_GROWTH");
     
+    public enum GenerationMode {
+        REGULAR,     // Generate trades with today's date (T+2 settlement)
+        BACKDATED,   // Generate trades with date set to settlement date (immediate settlement)
+        STOPPED      // No trades will be generated even if the scheduler is running
+    }
+    
     private final TradeService tradeService;
     private final DemoConfig config;
     private final Random random;
     private boolean running;
     private long tradeCount = 0;
+    private GenerationMode generationMode = GenerationMode.REGULAR;
 
     public DemoTradeGenerator(TradeService tradeService, DemoConfig config) {
         this.tradeService = tradeService;
@@ -41,7 +48,10 @@ public class DemoTradeGenerator {
 
     @Scheduled(fixedRate = 5000)
     public void generateTrade() {
-        if (!running) return;
+        // Do not generate trades if running is false or mode is STOPPED
+        if (!running || generationMode == GenerationMode.STOPPED) {
+            return;
+        }
         
         try {
             TradeRequest trade = generateRandomTrade();
@@ -73,6 +83,19 @@ public class DemoTradeGenerator {
         String tradeCurrency = pickRandomCurrency();
         String portfolioId = pickRandomPortfolio();
 
+        LocalDate tradeDate;
+        LocalDate settleDate = null;
+        
+        if (generationMode == GenerationMode.BACKDATED) {
+            // For backdated trades, set trade date to 2 days ago so it settles today
+            tradeDate = LocalDate.now().minusDays(2);
+            // Also explicitly set settlement date to today
+            settleDate = LocalDate.now();
+        } else {
+            // For regular trades, use today's date (settlement will be T+2)
+            tradeDate = LocalDate.now();
+        }
+
         TradeRequest trade = new TradeRequest();
         trade.setTradeId(UUID.randomUUID()); // Generate a UUID for idempotency
         trade.setIsin(isin);
@@ -81,7 +104,12 @@ public class DemoTradeGenerator {
         trade.setSide(side);
         trade.setTradeCurrency(tradeCurrency);
         trade.setPortfolioId(portfolioId);
-        trade.setTradeDate(LocalDate.now());
+        trade.setTradeDate(tradeDate);
+        
+        // Set the settle date explicitly for backdated mode
+        if (settleDate != null) {
+            trade.setSettleDate(settleDate);
+        }
         
         return trade;
     }
@@ -123,8 +151,37 @@ public class DemoTradeGenerator {
         log.info("Demo trade generator stopped");
     }
     
+    public boolean isRunning() {
+        return running;
+    }
+    
     // Metrics
     public long getTradeCount() {
         return tradeCount;
+    }
+    
+    // Generation mode control
+    public void setGenerationMode(GenerationMode mode) {
+        this.generationMode = mode;
+        log.info("Trade generation mode set to: {}", mode);
+    }
+    
+    public GenerationMode getGenerationMode() {
+        return generationMode;
+    }
+    
+    public void enableBackdatedTradeMode() {
+        setGenerationMode(GenerationMode.BACKDATED);
+        log.info("Backdated trade mode enabled - trades will be generated with settlement date = today");
+    }
+    
+    public void enableRegularTradeMode() {
+        setGenerationMode(GenerationMode.REGULAR);
+        log.info("Regular trade mode enabled - trades will be generated with settlement date = trade date + 2 business days");
+    }
+    
+    public void enableStoppedMode() {
+        setGenerationMode(GenerationMode.STOPPED);
+        log.info("Stopped mode enabled - no trades will be generated even if the scheduler is running");
     }
 }

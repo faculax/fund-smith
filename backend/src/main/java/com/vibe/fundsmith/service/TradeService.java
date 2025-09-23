@@ -31,14 +31,17 @@ public class TradeService {
     private final TradeRepository tradeRepository;
     private final PositionService positionService;
     private final CashService cashService;
+    private final JournalService journalService;
 
     @Autowired
     public TradeService(TradeRepository tradeRepository,
                        PositionService positionService,
-                       CashService cashService) {
+                       CashService cashService,
+                       JournalService journalService) {
         this.tradeRepository = tradeRepository;
         this.positionService = positionService;
         this.cashService = cashService;
+        this.journalService = journalService;
     }
 
     /**
@@ -115,6 +118,20 @@ public class TradeService {
         } catch (Exception e) {
             log.error("Failed to update cash for trade {}", tradeId, e);
             throw new RuntimeException("Failed to update cash: " + e.getMessage(), e);
+        }
+        
+        // Create accounting journal entries
+        try {
+            journalService.createTradeDateJournal(
+                tradeId,
+                request.getIsin(),
+                new BigDecimal(request.getQuantity()),
+                request.getPrice(),
+                side
+            );
+        } catch (Exception e) {
+            log.error("Failed to create journal for trade {}", tradeId, e);
+            throw new RuntimeException("Failed to create journal: " + e.getMessage(), e);
         }
         
         log.info("Successfully booked trade {}: {} {} of {} at {}", 

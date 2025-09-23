@@ -16,6 +16,17 @@ public interface TradeRepository extends JpaRepository<Trade, Long> {
      */
     Optional<Trade> findByTradeId(UUID tradeId);
     
+    /**
+     * Find trades that need settlement (have reached their settle date but don't have settlement markers)
+     * @param settleDate The settlement date to check
+     * @return List of trades due for settlement
+     */
+    @org.springframework.data.jpa.repository.Query(
+        "SELECT t FROM Trade t WHERE t.settleDate = :settleDate AND t.tradeId NOT IN " +
+        "(SELECT sm.tradeId FROM SettlementMarker sm)"
+    )
+    List<Trade> findBySettleDateAndNotSettled(LocalDate settleDate);
+    
     List<Trade> findByTradeDateBetweenOrderByCreatedAtDescIdDesc(
         LocalDate fromDate, 
         LocalDate toDate, 
