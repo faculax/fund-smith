@@ -26,7 +26,7 @@ EXPOSE 8081
 # Set environment variables for service connectivity
 # SERVER_PORT is not set to use the default from application.yml
 ENV MARKET_DATA_URI=http://backend:8080
-ENV BACKEND_URI=http://backend:8080
+ENV BACKEND_URI=https://fund-smith-backend.onrender.com
 
 # Run the app
 ENTRYPOINT ["java", "-Xmx512m", "-Xms256m", "-jar", "app.jar"]
