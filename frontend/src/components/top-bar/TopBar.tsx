@@ -3,6 +3,7 @@ import { tradeService } from '../../services/tradeService';
 import { cashService } from '../../services/cashService';
 import { journalService } from '../../services/journalService';
 import { demoService } from '../../services/demoService';
+import { navService } from '../../services/navService';
 
 interface TopBarProps {
   onTransactionsCleared?: () => void; // Optional callback when transactions are cleared
@@ -116,18 +117,23 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
       const cashResult = await cashService.resetCashBalance();
       console.log('Cash balance reset:', cashResult);
       
+      // Reset NAV snapshots
+      const navResult = await navService.resetSnapshots();
+      console.log('NAV snapshots reset:', navResult);
+      
       setIsAdminMenuOpen(false);
       
-      // Notify parent component that everything was reset
+      // This will now refresh all components including NavPanel
       if (onTransactionsCleared) {
         onTransactionsCleared();
       }
       
-      // Show a success message
+      // Update alert to include NAV snapshot info
       alert(`System reset complete:
 • Cleared ${tradeResult.deletedCount} trades
 • Reset cash balance to $10,000,000.00
-• Cleared all cash history`);
+• Cleared all cash history
+• Deleted ${navResult.deletedCount} NAV snapshots`);
       
     } catch (error) {
       console.error('Failed to reset everything:', error);

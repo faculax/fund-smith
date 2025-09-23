@@ -103,12 +103,23 @@
   font-size: 0.875rem;
 }
 
+.listItem {
+  display: flex;
+  flex-direction: row; /* Ensure items are in a row */
+  justify-content: space-between; /* Space between date and value */
+  align-items: center; /* Vertically center */
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+}
+
 .histDate {
-  color: #9ca3af;
+  color: #9ca3af; /* Light gray for date */
+  margin-right: 1rem; /* Space between date and value */
 }
 
 .histValue {
-  font-weight: 500;
+  font-weight: 500; /* Make values slightly bold */
+  white-space: nowrap; /* Prevent wrapping */
 }
 
 .positive {

@@ -15,14 +15,17 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
  * REST controller for NAV endpoints (Story 5.4).
- * - POST /api/nav/calculate -> triggers calculation and returns saved snapshot (includes id)
- * - GET  /api/nav/latest    -> returns latest snapshot
- * - GET  /api/nav/history   -> returns newest-first limited history
- * - GET  /api/nav/history/range -> returns historical snapshots between start and end (asc)
+ * - POST /api/nav/calculate -> triggers calculation and returns saved snapshot
+ * (includes id)
+ * - GET /api/nav/latest -> returns latest snapshot
+ * - GET /api/nav/history -> returns newest-first limited history
+ * - GET /api/nav/history/range -> returns historical snapshots between start
+ * and end (asc)
  */
 @RestController
 @RequestMapping("/api/nav")
@@ -33,7 +36,7 @@ public class NavCalculationController {
     private final NavCalculationRepository navCalculationRepository;
 
     public NavCalculationController(NavCalculationService navCalculationService,
-                                    NavCalculationRepository navCalculationRepository) {
+            NavCalculationRepository navCalculationRepository) {
         this.navCalculationService = navCalculationService;
         this.navCalculationRepository = navCalculationRepository;
     }
@@ -98,6 +101,28 @@ public class NavCalculationController {
             return ResponseEntity.ok(list);
         } catch (Exception e) {
             log.error("Error fetching NAV history range: {}", e.getMessage());
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
+     * Delete all NAV snapshots (for system reset)
+     *
+     * @return Response with count of deleted snapshots
+     */
+    @DeleteMapping
+    public ResponseEntity<Map<String, Object>> deleteAllSnapshots() {
+        try {
+            long deletedCount = navCalculationRepository.count();
+            navCalculationRepository.deleteAll();
+            log.info("Deleted {} NAV snapshots", deletedCount);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "All NAV snapshots have been deleted",
+                    "deletedCount", deletedCount));
+        } catch (Exception e) {
+            log.error("Error deleting NAV snapshots: {}", e.getMessage());
             return ResponseEntity.internalServerError().build();
         }
     }

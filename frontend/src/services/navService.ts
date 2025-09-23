@@ -46,6 +46,19 @@ class NavService {
     }
     return (await res.json()) as NavSnapshot[];
   }
+
+  /**
+   * Delete all NAV snapshots (used by system reset)
+   */
+  async resetSnapshots(): Promise<{success: boolean, message: string, deletedCount: number}> {
+    const url = `${this.base}`;
+    const res = await fetch(url, { method: 'DELETE' });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Failed to reset NAV snapshots: ${res.status} ${text}`);
+    }
+    return await res.json();
+  }
 }
 
 export const navService = new NavService();

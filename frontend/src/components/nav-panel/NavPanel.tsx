@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, ForwardedRef } from 'react';
 import { navService } from '../../services/navService';
 import { NavSnapshot } from '../../types/nav';
 import styles from './NavPanel.module.css';
+
+/**
+ * Ref type definition for NavPanel component
+ * This allows parent components to call refreshData() via a ref
+ */
+export interface NavPanelRef {
+  refreshData: () => void;
+}
 
 /**
  * NavPanel - minimal UI surface for Epic_05 (NAV)
@@ -15,12 +23,20 @@ import styles from './NavPanel.module.css';
  * - Reuse existing app look & feel (tailwind classes where helpful)
  * - Keep behavior predictable: button disabled while running
  */
-const NavPanel: React.FC = () => {
+const NavPanel = forwardRef<NavPanelRef, {}>((props, ref: ForwardedRef<NavPanelRef>) => {
   const [latest, setLatest] = useState<NavSnapshot | null>(null);
   const [history, setHistory] = useState<NavSnapshot[]>([]);
   const [loadingLatest, setLoadingLatest] = useState(false);
   const [runningCalc, setRunningCalc] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Expose refreshData to parent components via ref
+  useImperativeHandle(ref, () => ({
+    refreshData: () => {
+      refreshLatest();
+      refreshHistory();
+    }
+  }));
 
   const refreshLatest = async () => {
     setLoadingLatest(true);
@@ -117,6 +133,7 @@ const NavPanel: React.FC = () => {
           </div>
         </div>
 
+        {/* Recent snapshots section */}
         <div className={styles.history}>
           <h4>Recent snapshots</h4>
           {history.length === 0 ? (
@@ -125,8 +142,9 @@ const NavPanel: React.FC = () => {
             <ul className={styles.list}>
               {history.map(h => (
                 <li key={h.id} className={styles.listItem}>
-                  <div className={styles.histDate}>{new Date(h.calculationDate).toLocaleString()}</div>
-                  <div className={styles.histValue}>{formatCurrency(h.netValue)} ({h.navPerShare.toFixed(4)})</div>
+                  {/* Put date and value on same line with flex layout */}
+                  <span className={styles.histDate}>{formatDate(h.calculationDate)}</span>
+                  <span className={styles.histValue}>{formatCurrency(h.netValue)} ({h.navPerShare.toFixed(4)})</span>
                 </li>
               ))}
             </ul>
@@ -135,7 +153,7 @@ const NavPanel: React.FC = () => {
       </div>
     </div>
   );
-};
+});
 
 /** Small formatter matching UI conventions (USD) */
 function formatCurrency(n: number): string {
