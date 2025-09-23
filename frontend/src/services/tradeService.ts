@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config/api';
-import { Trade, TradeQueryParams, TradeRequest } from '../types/trade';
+import { Trade, TradeQueryParams, TradeRequest, TradeResponse } from '../types/trade';
 
 class TradeService {
     private buildQueryString(params?: TradeQueryParams): string {
@@ -31,7 +31,23 @@ class TradeService {
         }
     }
 
-    async bookTrade(trade: TradeRequest): Promise<Trade> {
+    async fetchTradeById(tradeId: string): Promise<Trade> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/trades/${tradeId}`);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const trade: Trade = await response.json();
+            return trade;
+        } catch (error) {
+            console.error(`Error fetching trade ${tradeId}:`, error);
+            throw error;
+        }
+    }
+
+    async bookTrade(trade: TradeRequest): Promise<TradeResponse> {
         try {
             const response = await fetch(`${API_BASE_URL}/trades`, {
                 method: 'POST',
@@ -68,20 +84,16 @@ class TradeService {
         }
     }
     
-    /**
-     * Clears all trades from the database
-     * @returns A promise that resolves when all trades are cleared
-     */
-    async clearAllTrades(): Promise<{ success: boolean; message: string; deletedCount: number }> {
+    async clearAllTrades(): Promise<{success: boolean, message: string, deletedCount: number}> {
         try {
             const response = await fetch(`${API_BASE_URL}/trades`, {
-                method: 'DELETE',
+                method: 'DELETE'
             });
-            
+
             if (!response.ok) {
-                throw new Error('Failed to clear trades');
+                throw new Error('Failed to clear all trades');
             }
-            
+
             return await response.json();
         } catch (error) {
             console.error('Error clearing trades:', error);

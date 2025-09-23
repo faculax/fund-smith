@@ -1,8 +1,10 @@
 package com.vibe.fundsmith.service;
 
 import com.vibe.fundsmith.dto.TradeRequest;
+import com.vibe.fundsmith.dto.TradeResponse;
 import com.vibe.fundsmith.exception.ValidationException;
 import com.vibe.fundsmith.model.Trade;
+import com.vibe.fundsmith.repository.TradeRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -13,6 +15,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.DayOfWeek;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -23,6 +27,9 @@ public class TradeServiceIntegrationTest {
     
     @Autowired
     private TradeService tradeService;
+    
+    @Autowired
+    private TradeRepository tradeRepository;
 
     @Test
     void shouldBookValidTrade() {
@@ -34,10 +41,16 @@ public class TradeServiceIntegrationTest {
         request.setTradeDate(LocalDate.now());
 
         // When
-        Trade trade = tradeService.bookTrade(request);
-
+        TradeResponse response = tradeService.bookTrade(request);
+        
         // Then
-        assertNotNull(trade.getId());
+        assertNotNull(response.getTradeId());
+        
+        // Fetch the actual trade
+        Optional<Trade> tradeOpt = tradeRepository.findByTradeId(response.getTradeId());
+        assertTrue(tradeOpt.isPresent());
+        
+        Trade trade = tradeOpt.get();
         assertEquals(request.getIsin(), trade.getIsin());
         assertEquals(request.getQuantity(), trade.getQuantity());
         assertEquals(request.getPrice(), trade.getPrice());
@@ -79,8 +92,13 @@ public class TradeServiceIntegrationTest {
         request.setTradeDate(friday);
 
         // When
-        Trade trade = tradeService.bookTrade(request);
-
+        TradeResponse response = tradeService.bookTrade(request);
+        
+        // Then 
+        Optional<Trade> tradeOpt = tradeRepository.findByTradeId(response.getTradeId());
+        assertTrue(tradeOpt.isPresent());
+        
+        Trade trade = tradeOpt.get();
         // Then - Settle date should be Tuesday (T+2 business days)
         assertEquals(
             friday.plusDays(4), // Skip Sat/Sun
@@ -108,13 +126,14 @@ public class TradeServiceIntegrationTest {
         assertTrue(trades.stream().allMatch(t -> t.getIsin().equals("US0378331005")));
     }
 
-    private Trade createTestTrade(String isin, LocalDate tradeDate) {
+    private UUID createTestTrade(String isin, LocalDate tradeDate) {
         TradeRequest request = new TradeRequest();
         request.setIsin(isin);
         request.setQuantity(1000L);
         request.setPrice(new BigDecimal("175.50"));
         request.setTradeDate(tradeDate);
-        return tradeService.bookTrade(request);
+        TradeResponse response = tradeService.bookTrade(request);
+        return response.getTradeId();
     }
 
     private boolean isWeekend(LocalDate date) {

@@ -1,21 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useRef } from 'react';
 import './App.css';
-import { TradeList } from './components/trade-list/TradeList';
-import { TopBar } from './components/top-bar/TopBar';
-import { tradeService } from './services/tradeService';
+import { TradeList, TradeListRef } from './components/trade-list/TradeList';
+import { PositionsPanel, PositionsPanelRef } from './components/positions-panel/PositionsPanel';
+import CashHistoryPanel, { CashHistoryPanelRef } from './components/cash-history/CashHistoryPanel';
+import TopBar from './components/top-bar/TopBar';
 
 function App() {
-  const [refreshKey, setRefreshKey] = useState(0);
+  const tradeListRef = useRef<TradeListRef>(null);
+  const positionsPanelRef = useRef<PositionsPanelRef>(null);
+  const cashHistoryPanelRef = useRef<CashHistoryPanelRef>(null);
 
-  // Function to handle transactions being cleared
-  const handleTransactionsCleared = () => {
-    // Force a re-render of TradeList by updating the key
-    setRefreshKey(prev => prev + 1);
+  const refreshAll = () => {
+    tradeListRef.current?.refreshTrades();
+    positionsPanelRef.current?.refreshData();
+    cashHistoryPanelRef.current?.refreshHistory();
   };
-  
+
+  const handleTransactionsCleared = () => {
+    refreshAll();
+  };
+
   return (
     <div className="min-h-screen bg-fd-dark">
-      {/* Top Navigation Bar with Admin Dropdown */}
       <TopBar onTransactionsCleared={handleTransactionsCleared} />
       
       <div className="p-8">
@@ -25,9 +31,25 @@ function App() {
             <span className="text-fd-green">SMITH</span>
           </h1>
         </div>
+      
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="md:col-span-2">
+            <TradeList ref={tradeListRef} />
+          </div>
+          <div className="space-y-8">
+            <PositionsPanel ref={positionsPanelRef} />
+            <CashHistoryPanel ref={cashHistoryPanelRef} />
+          </div>
+        </div>
         
-        {/* Use key to force re-render when transactions are cleared */}
-        <TradeList key={refreshKey} />
+        <div className="mt-8 text-center">
+          <button 
+            className="bg-transparent border border-fd-green text-fd-green px-6 py-2 rounded hover:bg-fd-green hover:bg-opacity-10 flex items-center mx-auto"
+            onClick={refreshAll}
+          >
+            <span className="mr-2">↻</span> Refresh All Data
+          </button>
+        </div>
       </div>
     </div>
   );

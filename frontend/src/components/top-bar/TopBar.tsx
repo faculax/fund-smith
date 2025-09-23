@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { tradeService } from '../../services/tradeService';
+import { cashService } from '../../services/cashService';
 
 interface TopBarProps {
   onTransactionsCleared?: () => void; // Optional callback when transactions are cleared
@@ -8,6 +9,8 @@ interface TopBarProps {
 export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [isResettingCash, setIsResettingCash] = useState(false);
+  const [isResettingAll, setIsResettingAll] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Handle clicking outside the dropdown to close it
@@ -49,6 +52,61 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
       setIsClearing(false);
     }
   };
+  
+  const handleResetCashBalance = async () => {
+    try {
+      setIsResettingCash(true);
+      const result = await cashService.resetCashBalance();
+      console.log('Cash balance reset:', result);
+      setIsAdminMenuOpen(false);
+      
+      // Notify parent component that cash was reset
+      if (onTransactionsCleared) {
+        onTransactionsCleared();
+      }
+      
+      // Show a temporary success message
+      alert(`Successfully reset cash balance to $10,000,000.00 and cleared all history`);
+    } catch (error) {
+      console.error('Failed to reset cash balance:', error);
+      alert('Failed to reset cash balance. See console for details.');
+    } finally {
+      setIsResettingCash(false);
+    }
+  };
+  
+  const handleResetAll = async () => {
+    try {
+      setIsResettingAll(true);
+      
+      // Clear trades first
+      const tradeResult = await tradeService.clearAllTrades();
+      console.log('Trades cleared:', tradeResult);
+      
+      // Then reset cash balance
+      const cashResult = await cashService.resetCashBalance();
+      console.log('Cash balance reset:', cashResult);
+      
+      setIsAdminMenuOpen(false);
+      
+      // Notify parent component that everything was reset
+      if (onTransactionsCleared) {
+        onTransactionsCleared();
+      }
+      
+      // Show a success message
+      alert(`System reset complete:
+• Cleared ${tradeResult.deletedCount} trades
+• Reset cash balance to $10,000,000.00
+• Cleared all cash history`);
+      
+    } catch (error) {
+      console.error('Failed to reset everything:', error);
+      alert('Failed to reset everything. See console for details.');
+    } finally {
+      setIsResettingAll(false);
+    }
+  };
 
   return (
     <nav className="bg-fd-darker border-b border-fd-border py-3 px-6">
@@ -76,13 +134,28 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
           </button>
           
           {isAdminMenuOpen && (
-            <div className="absolute right-0 mt-2 w-48 py-2 bg-fd-darker rounded-md shadow-fd border border-fd-border z-10">
+            <div className="absolute right-0 mt-2 w-64 py-2 bg-fd-darker rounded-md shadow-fd border border-fd-border z-10">
               <button 
                 onClick={handleClearTransactions}
-                disabled={isClearing}
+                disabled={isClearing || isResettingCash}
                 className="block w-full text-left px-4 py-2 text-sm text-fd-text hover:bg-fd-dark disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isClearing ? 'Clearing...' : 'Clear Transactions'}
+              </button>
+              <button 
+                onClick={handleResetCashBalance}
+                disabled={isClearing || isResettingCash || isResettingAll}
+                className="block w-full text-left px-4 py-2 text-sm text-fd-text hover:bg-fd-dark disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResettingCash ? 'Resetting...' : 'Reset Cash to $10M & Clear History'}
+              </button>
+              <hr className="my-1 border-fd-border" />
+              <button 
+                onClick={handleResetAll}
+                disabled={isClearing || isResettingCash || isResettingAll}
+                className="block w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-fd-dark disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResettingAll ? 'Resetting Everything...' : 'Reset Everything (Trades & Cash)'}
               </button>
             </div>
           )}
