@@ -4,6 +4,7 @@ import { TradeList, TradeListRef } from './components/trade-list/TradeList';
 import { PositionsPanel, PositionsPanelRef } from './components/positions-panel/PositionsPanel';
 import CashHistoryPanel, { CashHistoryPanelRef } from './components/cash-history/CashHistoryPanel';
 import TopBar from './components/top-bar/TopBar';
+import NavPanel from './components/nav-panel/NavPanel';
 
 function App() {
   const tradeListRef = useRef<TradeListRef>(null);
@@ -39,6 +40,7 @@ function App() {
           <div className="space-y-8">
             <PositionsPanel ref={positionsPanelRef} />
             <CashHistoryPanel ref={cashHistoryPanelRef} />
+            <NavPanel />
           </div>
         </div>
         

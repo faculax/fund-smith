@@ -3,6 +3,7 @@ package com.vibe.fundsmith.dto;
 import com.vibe.fundsmith.model.NavCalculation;
 
 import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 /**
@@ -71,7 +72,8 @@ public class NavCalculationDto {
 
         // Calculation timestamp as ISO-8601 string for API consumers
         if (nav.getCalculationDate() != null) {
-            dto.setCalculationDate(nav.getCalculationDate().toString());
+            DateTimeFormatter formatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
+            dto.setCalculationDate(nav.getCalculationDate().format(formatter));
         } else {
             dto.setCalculationDate(null);
         }
