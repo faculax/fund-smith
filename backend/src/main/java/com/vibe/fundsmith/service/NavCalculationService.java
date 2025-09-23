@@ -1,32 +1,30 @@
 package com.vibe.fundsmith.service;
 
+import com.vibe.fundsmith.config.DemoConfig;
+import com.vibe.fundsmith.exception.NavCalculationException;
 import com.vibe.fundsmith.model.NavCalculation;
 import com.vibe.fundsmith.model.Position;
-import com.vibe.fundsmith.exception.NavCalculationException;
-import com.vibe.fundsmith.repository.NavCalculationRepository;
 import com.vibe.fundsmith.repository.CashLedgerRepository;
-import com.vibe.fundsmith.config.DemoConfig;
+import com.vibe.fundsmith.repository.NavCalculationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
- * Service responsible for Net Asset Value (NAV) calculations.
- * Uses configuration-based approach for fund parameters (shares outstanding)
- * rather than Portfolio entity to maintain simpler data model for MVP.
+ * Service responsible for NAV calculation and persistence.
  *
- * Key Features:
- * - On-demand NAV calculation (Story 5.1)
- * - Position valuation using price stub from demo config
- * - Cash balance from cash_ledger
- * - NAV per share using configured shares outstanding
- * - Historical NAV tracking
+ * Implementation notes / rationale:
+ * - Reuses demo prices defined in application.yml via DemoConfig (no new price stub).
+ * - Uses cash_ledger aggregate for cash balance (CashLedgerRepository#getCurrentBalance).
+ * - Shares outstanding and fee rate are externalized in application.yml for configurability.
+ * - Fee accrual is calculated as a daily accrual: (gross * feeRate) / 365 and stored as a liability.
+ * - The method is transactional to ensure snapshot persistence is atomic with the read operations.
  */
 @Service
 public class NavCalculationService {
@@ -37,7 +35,7 @@ public class NavCalculationService {
     private final CashLedgerRepository cashLedgerRepository;
     private final DemoConfig demoConfig;
     private final Long defaultSharesOutstanding;
-    private final BigDecimal feeRate; // Annual fee rate (e.g. 0.005 for 0.5%)
+    private final BigDecimal feeRate; // annual fee rate, e.g. 0.005 for 0.5%
 
     public NavCalculationService(
             NavCalculationRepository navCalculationRepository,
@@ -55,112 +53,79 @@ public class NavCalculationService {
     }
 
     /**
-     * Calculates NAV for the fund, including daily management fee accrual.
-     * - Gross Asset Value = positions + cash
-     * - Daily Fee = (Gross Asset Value * feeRate) / 365
-     * - Net Asset Value = Gross Asset Value - Daily Fee
-     * - NAV per share = Net Asset Value / shares outstanding
-     */
-    @Transactional
-    public NavCalculation calculateNav(String portfolioId) {
-        log.info("Starting NAV calculation for portfolio: {}", portfolioId);
-
-        try {
-            BigDecimal positionsValue = calculatePositionsValue();
-            BigDecimal cashBalance = cashLedgerRepository.getCurrentBalance(portfolioId);
-            BigDecimal grossAssetValue = positionsValue.add(cashBalance);
-
-            // Calculate daily fee accrual
-            BigDecimal dailyFeeAccrual = grossAssetValue
-                    .multiply(feeRate)
-                    .divide(BigDecimal.valueOf(365), 4, RoundingMode.HALF_UP);
-
-            // Net asset value after fee
-            BigDecimal netAssetValue = grossAssetValue.subtract(dailyFeeAccrual);
-
-            // NAV per share
-            BigDecimal navPerShare = netAssetValue.divide(
-                    BigDecimal.valueOf(defaultSharesOutstanding),
-                    4, RoundingMode.HALF_UP);
-
-            // Create and save NAV calculation snapshot
-            NavCalculation nav = new NavCalculation(portfolioId);
-            nav.setTotalAssets(grossAssetValue);
-            nav.setTotalLiabilities(dailyFeeAccrual); // Fee accrual as liability
-            nav.setNetAssetValue(netAssetValue);
-            nav.setNavPerShare(navPerShare);
-
-            log.info("NAV calculation completed. Gross: {}, Fee: {}, Net: {}, NAV/share: {}",
-                    grossAssetValue, dailyFeeAccrual, netAssetValue, navPerShare);
-
-            return navCalculationRepository.save(nav);
-
-        } catch (Exception e) {
-            log.error("NAV calculation failed: {}", e.getMessage());
-            throw new NavCalculationException("Failed to calculate NAV", e);
-        }
-    }
-
-    /**
-     * Calculates total value of all positions using demo prices.
-     * Returns zero if no positions exist (handles empty portfolio case).
-     *
-     * @return Total value of all positions
+     * Calculate positions value using demo prices.
+     * Returns BigDecimal.ZERO when no positions exist (explicit empty portfolio handling).
      */
     private BigDecimal calculatePositionsValue() {
-        List<Position> positions = positionService.getPositions();
-
-        if (positions.isEmpty()) {
-            log.info("No positions found, portfolio value is 0");
+        List<Position> positions = positionService.getPositions(); // PositionService must expose getPositions()
+        if (positions == null || positions.isEmpty()) {
+            log.debug("No positions present; positions value = 0");
             return BigDecimal.ZERO;
         }
 
         return positions.stream()
-            .map(position -> {
-                // Get price from demo config (price stub)
-                BigDecimal price = demoConfig.getBasePrices()
-                    .getOrDefault(position.getIsin(), BigDecimal.ZERO);
-                return price.multiply(position.getQuantity());
-            })
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(pos -> {
+                    BigDecimal price = demoConfig.getBasePrices()
+                            .getOrDefault(pos.getIsin(), BigDecimal.ZERO);
+                    return price.multiply(pos.getQuantity());
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**
-     * Calculates NAV per share with 4 decimal precision.
+     * Calculate NAV for given portfolio scope key and persist snapshot.
      *
-     * @param nav Total net asset value
-     * @param sharesOutstanding Number of shares
-     * @return NAV per share rounded to 4 decimal places
+     * transactional ensures snapshot is only saved if the calculation completes successfully.
      */
-    private BigDecimal calculateNavPerShare(BigDecimal nav, Long sharesOutstanding) {
-        return nav.divide(BigDecimal.valueOf(sharesOutstanding), 4, RoundingMode.HALF_UP);
+    @Transactional
+    public NavCalculation calculateNav(String portfolioId) {
+        log.info("Starting NAV calculation for portfolio {}", portfolioId);
+        try {
+            BigDecimal positionsValue = calculatePositionsValue();
+            log.debug("Positions value computed: {}", positionsValue);
+
+            BigDecimal cashBalance = cashLedgerRepository.getCurrentBalance(portfolioId);
+            log.debug("Cash balance fetched: {}", cashBalance);
+
+            BigDecimal grossAssetValue = positionsValue.add(cashBalance);
+            // daily fee accrual
+            BigDecimal dailyFeeAccrual = grossAssetValue
+                    .multiply(feeRate)
+                    .divide(BigDecimal.valueOf(365), 4, RoundingMode.HALF_UP);
+
+            BigDecimal netAssetValue = grossAssetValue.subtract(dailyFeeAccrual);
+
+            BigDecimal navPerShare = netAssetValue.divide(
+                    BigDecimal.valueOf(defaultSharesOutstanding),
+                    4,
+                    RoundingMode.HALF_UP
+            );
+
+            // build snapshot entity capturing sharesOutstanding at calculation time
+            NavCalculation snapshot = new NavCalculation(portfolioId, defaultSharesOutstanding);
+            snapshot.setTotalAssets(grossAssetValue);
+            snapshot.setTotalLiabilities(dailyFeeAccrual);
+            snapshot.setNetAssetValue(netAssetValue);
+            snapshot.setNavPerShare(navPerShare);
+
+            NavCalculation saved = navCalculationRepository.save(snapshot);
+
+            log.info("NAV snapshot saved (id={}): gross={}, fee={}, net={}, nav/share={}",
+                    saved.getId(), grossAssetValue, dailyFeeAccrual, netAssetValue, navPerShare);
+
+            return saved;
+        } catch (Exception e) {
+            log.error("Failed to calculate NAV for portfolio {}: {}", portfolioId, e.getMessage());
+            throw new NavCalculationException("Failed to calculate NAV", e);
+        }
     }
 
-    /**
-     * Retrieves the most recent NAV calculation for a portfolio.
-     *
-     * @param portfolioId Portfolio identifier
-     * @return Latest NAV calculation
-     * @throws NavCalculationException if no NAV calculations exist
-     */
     public NavCalculation getLatestNav(String portfolioId) {
         return navCalculationRepository.findTopByPortfolioIdOrderByCalculationDateDesc(portfolioId)
-            .orElseThrow(() -> new NavCalculationException("No NAV calculations found"));
+                .orElseThrow(() -> new NavCalculationException("No NAV snapshots found for portfolio: " + portfolioId));
     }
 
-    /**
-     * Retrieves historical NAV calculations within a date range.
-     *
-     * @param portfolioId Portfolio identifier
-     * @param startDate Start of date range (inclusive)
-     * @param endDate End of date range (inclusive)
-     * @return List of NAV calculations ordered by date ascending
-     */
-    public List<NavCalculation> getNavHistory(String portfolioId,
-                                            ZonedDateTime startDate,
-                                            ZonedDateTime endDate) {
-        return navCalculationRepository
-            .findByPortfolioIdAndCalculationDateBetweenOrderByCalculationDateAsc(
-                portfolioId, startDate, endDate);
+    public List<NavCalculation> getNavHistory(String portfolioId, java.time.ZonedDateTime start, java.time.ZonedDateTime end) {
+        return navCalculationRepository.findByPortfolioIdAndCalculationDateBetweenOrderByCalculationDateAsc(portfolioId, start, end);
     }
 }
