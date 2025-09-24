@@ -7,6 +7,7 @@ interface ServiceStatus {
   timestamp: number;
   responseTime?: number;
   error?: string;
+  backendStatus?: ServiceStatus; // For gateway to include backend status
 }
 
 interface ServiceHealthResponse {
@@ -111,37 +112,26 @@ const healthService = {
   },
 
   async getSystemHealth(): Promise<ServiceHealthResponse> {
-    // Always use explicit URLs for each service to ensure they're properly differentiated
-    const gatewayUrl = 'http://localhost:8081';
-    const backendUrl = 'http://localhost:8080';
+    // Extract base URL from API_BASE_URL (removing /api if present)
+    const apiBaseWithoutApi = API_BASE_URL.replace(/\/api$/, '');
+    const gatewayUrl = apiBaseWithoutApi; // Use the configured API base URL for gateway
     const frontendUrl = window.location.origin;
 
-    console.log(`Checking health for gateway: ${gatewayUrl}, backend: ${backendUrl}, frontend: ${frontendUrl}`);
+    console.log(`Checking health using gateway: ${gatewayUrl}`);
 
-    // Check real services health in parallel with explicit service names
-    const [backendStatus, gatewayStatus] = await Promise.all([
-      this.checkServiceHealth(backendUrl, 'backend').catch(err => {
-        console.error('Backend health check failed:', err);
-        return {
-          status: 'DOWN',
-          serviceName: 'backend',
-          timestamp: Date.now(),
-          responseTime: 0,
-          error: err instanceof Error ? err.message : String(err)
-        } as ServiceStatus;
-      }),
-      this.checkServiceHealth(gatewayUrl, 'gateway').catch(err => {
-        console.error('Gateway health check failed:', err);
-        return {
-          status: 'DOWN',
-          serviceName: 'gateway',
-          timestamp: Date.now(),
-          responseTime: 0,
-          error: err instanceof Error ? err.message : String(err)
-        } as ServiceStatus;
-      }),
-    ]);
-    
+    // Only check gateway health - the gateway will internally check backend health
+    // and return a combined status that includes all services
+    const gatewayStatus = await this.checkServiceHealth(gatewayUrl, 'gateway').catch(err => {
+      console.error('Gateway health check failed:', err);
+      return {
+        status: 'DOWN',
+        serviceName: 'gateway',
+        timestamp: Date.now(),
+        responseTime: 0,
+        error: err instanceof Error ? err.message : String(err)
+      } as ServiceStatus;
+    });
+
     // For frontend, we know it's running if we're executing this code
     const frontendStatus: ServiceStatus = {
       status: 'UP',
@@ -150,7 +140,19 @@ const healthService = {
       responseTime: 0
     };
     
-    // Mock services - in a real application these would be actual health checks
+    // Extract backend status from gateway response if available, otherwise create a mock
+    let backendStatus: ServiceStatus;
+    
+    if (gatewayStatus.backendStatus) {
+      // Use the backend status provided by the gateway
+      backendStatus = gatewayStatus.backendStatus as ServiceStatus;
+    } else {
+      // If gateway doesn't provide backend status, create a mock based on gateway status
+      // If gateway is down, backend is likely down too
+      backendStatus = this.mockServiceStatus('backend', gatewayStatus.status === 'UP');
+    }
+    
+    // Mock services - in a real application these would be actual health checks from gateway
     // PostgreSQL Database - always UP as requested
     const databaseStatus: ServiceStatus = this.mockServiceStatus('database', true);
     
@@ -158,9 +160,7 @@ const healthService = {
     const cashFlowStatus: ServiceStatus = this.mockServiceStatus('cash-flow-service', true);
     
     // Positions Service - always UP as requested
-    const positionsStatus: ServiceStatus = this.mockServiceStatus('positions-service', true);
-
-    // List of all services to calculate metrics
+    const positionsStatus: ServiceStatus = this.mockServiceStatus('positions-service', true);    // List of all services to calculate metrics
     const allServices = [
       backendStatus, 
       gatewayStatus, 
