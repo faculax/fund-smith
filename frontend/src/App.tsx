@@ -4,16 +4,19 @@ import { TradeList, TradeListRef } from './components/trade-list/TradeList';
 import { PositionsPanel, PositionsPanelRef } from './components/positions-panel/PositionsPanel';
 import CashHistoryPanel, { CashHistoryPanelRef } from './components/cash-history/CashHistoryPanel';
 import TopBar from './components/top-bar/TopBar';
+import NavPanel, { NavPanelRef } from './components/nav-panel/NavPanel';
 
 function App() {
   const tradeListRef = useRef<TradeListRef>(null);
   const positionsPanelRef = useRef<PositionsPanelRef>(null);
   const cashHistoryPanelRef = useRef<CashHistoryPanelRef>(null);
+  const navPanelRef = useRef<NavPanelRef>(null);
 
   const refreshAll = () => {
     tradeListRef.current?.refreshTrades();
     positionsPanelRef.current?.refreshData();
     cashHistoryPanelRef.current?.refreshHistory();
+    navPanelRef.current?.refreshData();
   };
 
   const handleTransactionsCleared = () => {
@@ -39,6 +42,7 @@ function App() {
           <div className="space-y-8">
             <PositionsPanel ref={positionsPanelRef} />
             <CashHistoryPanel ref={cashHistoryPanelRef} />
+            <NavPanel ref={navPanelRef} />
           </div>
         </div>
         
