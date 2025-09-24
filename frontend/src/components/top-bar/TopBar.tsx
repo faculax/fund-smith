@@ -4,6 +4,7 @@ import { cashService } from '../../services/cashService';
 import { journalService } from '../../services/journalService';
 import { demoService } from '../../services/demoService';
 import StatusModal from '../status-modal/StatusModal';
+import { navService } from '../../services/navService';
 
 interface TopBarProps {
   onTransactionsCleared?: () => void; // Optional callback when transactions are cleared
@@ -118,18 +119,23 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
       const cashResult = await cashService.resetCashBalance();
       console.log('Cash balance reset:', cashResult);
       
+      // Reset NAV snapshots
+      const navResult = await navService.resetSnapshots();
+      console.log('NAV snapshots reset:', navResult);
+      
       setIsAdminMenuOpen(false);
       
-      // Notify parent component that everything was reset
+      // This will now refresh all components including NavPanel
       if (onTransactionsCleared) {
         onTransactionsCleared();
       }
       
-      // Show a success message
+      // Update alert to include NAV snapshot info
       alert(`System reset complete:
 • Cleared ${tradeResult.deletedCount} trades
 • Reset cash balance to $10,000,000.00
-• Cleared all cash history`);
+• Cleared all cash history
+• Deleted ${navResult.deletedCount} NAV snapshots`);
       
     } catch (error) {
       console.error('Failed to reset everything:', error);
@@ -144,20 +150,20 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
       setIsProcessingSettlements(true);
       const result = await journalService.processSettlements();
       console.log('Settlements processed:', result);
-      setIsAdminMenuOpen(false);
       
-      // Notify parent component to refresh
-      if (onTransactionsCleared) {
-        onTransactionsCleared();
-      }
+      // Show a success message before refresh
+      alert(`Successfully processed ${result.processed} settlement${result.processed !== 1 ? 's' : ''} for ${result.date}. Refreshing page to update all data...`);
       
-      // Show a temporary success message
-      alert(`Successfully processed ${result.processed} settlement${result.processed !== 1 ? 's' : ''} for ${result.date}`);
+      // Force a page-level refresh to ensure all UI components are updated
+      // This is the simplest and most reliable way to ensure all data is refreshed
+      window.location.reload();
+      
+      // We won't reach here due to page reload
     } catch (error) {
       console.error('Failed to process settlements:', error);
       alert('Failed to process settlements. See console for details.');
-    } finally {
       setIsProcessingSettlements(false);
+      setIsAdminMenuOpen(false);
     }
   };
   

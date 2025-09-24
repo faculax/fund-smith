@@ -21,14 +21,22 @@ services:
     build: 
       context: ./backend
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/fundsmith
       SPRING_DATASOURCE_USERNAME: fundsmith
       SPRING_DATASOURCE_PASSWORD: fundsmith
       DEMO_ENABLED: "true"
+      SERVER_PORT: 8080
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   gateway:
     build:
@@ -36,11 +44,13 @@ services:
     ports:
       - "8081:8081"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
-      - SPRING_CLOUD_GATEWAY_ROUTES_0_URI=http://backend:8080
-      - SPRING_CLOUD_GATEWAY_ROUTES_1_URI=http://backend:8080
-      - SPRING_CLOUD_GATEWAY_ROUTES_2_URI=http://backend:8080
+      SERVER_PORT: 8081
+      SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://backend:8080
+      SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://backend:8080
+      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://backend:8080
 
   frontend:
     build:
@@ -48,7 +58,8 @@ services:
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_BASE_URL=http://localhost:8081/api
+      REACT_APP_API_BASE_URL: http://localhost:8081/api
+      NODE_ENV: development
     depends_on:
       - gateway
 

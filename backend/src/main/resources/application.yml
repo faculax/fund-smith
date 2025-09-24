@@ -21,21 +21,26 @@ spring:
 demo:
   enabled: true
   isins:
-    - US0378331005  # AAPL
-    - US5949181045  # MSFT
-    - US88160R1014  # TSLA
-    - GB0002634946  # BAE
-    - GB00B03MLX29  # SHELL
+    - US0378331005 # AAPL
+    - US5949181045 # MSFT
+    - US88160R1014 # TSLA
+    - GB0002634946 # BAE
+    - GB00B03MLX29 # SHELL
   base-prices:
-    US0378331005: 175.50  # AAPL
-    US5949181045: 320.75  # MSFT
-    US88160R1014: 242.25  # TSLA
-    GB0002634946: 8.85    # BAE
-    GB00B03MLX29: 25.40   # SHELL
+    US0378331005: 175.50 # AAPL
+    US5949181045: 320.75 # MSFT
+    US88160R1014: 242.25 # TSLA
+    GB0002634946: 8.85 # BAE
+    GB00B03MLX29: 25.40 # SHELL
   min-quantity: 100
   max-quantity: 5000
   quantity-step: 100
-  max-price-jitter: 0.02  # 2%
+  max-price-jitter: 0.02 # 2%
 
+nav:
+  default:
+    shares-outstanding: 1000000
+    currency: USD
+  fee-rate: 0.005 # 0.5% annual
 server:
   port: 8080
