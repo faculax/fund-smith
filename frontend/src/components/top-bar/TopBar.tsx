@@ -3,6 +3,7 @@ import { tradeService } from '../../services/tradeService';
 import { cashService } from '../../services/cashService';
 import { journalService } from '../../services/journalService';
 import { demoService } from '../../services/demoService';
+import StatusModal from '../status-modal/StatusModal';
 
 interface TopBarProps {
   onTransactionsCleared?: () => void; // Optional callback when transactions are cleared
@@ -15,6 +16,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
   const [isResettingAll, setIsResettingAll] = useState(false);
   const [isProcessingSettlements, setIsProcessingSettlements] = useState(false);
   const [isChangingTradeMode, setIsChangingTradeMode] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [demoStatus, setDemoStatus] = useState<{ running: boolean; mode: string; tradeCount: number } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -199,14 +201,22 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
   };
 
   return (
-    <nav className="bg-fd-darker border-b border-fd-border py-3 px-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 bg-fd-green rounded-full animate-pulse"></div>
-          <span className="text-fd-green font-medium">ONLINE</span>
-        </div>
-        
-        <div className="relative" ref={dropdownRef}>
+    <>
+      <StatusModal isOpen={isStatusModalOpen} onClose={() => setIsStatusModalOpen(false)} />
+      
+      <nav className="bg-fd-darker border-b border-fd-border py-3 px-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsStatusModalOpen(true)}
+              className="flex items-center space-x-2 hover:bg-fd-dark px-2 py-1 rounded"
+            >
+              <div className="w-3 h-3 bg-fd-green rounded-full animate-pulse"></div>
+              <span className="text-fd-green font-medium">SYSTEM STATUS</span>
+            </button>
+          </div>
+          
+          <div className="relative" ref={dropdownRef}>
           <button 
             onClick={toggleAdminMenu}
             className="btn btn-outline flex items-center"
@@ -300,6 +310,7 @@ export const TopBar: React.FC<TopBarProps> = ({ onTransactionsCleared }) => {
         </div>
       </div>
     </nav>
+    </>
   );
 };
 

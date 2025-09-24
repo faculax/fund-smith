@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: vibe-gateway
+  profiles:
+    include: actuator
   cloud:
     gateway:
       globalcors:

@@ -1,4 +1,8 @@
 spring:
+  application:
+    name: trading-platform
+  profiles:
+    include: actuator
   datasource:
     url: jdbc:postgresql://localhost:5432/fundsmith
     username: fundsmith
